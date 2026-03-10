@@ -1,0 +1,2 @@
+py mt5_bridge.py
+node bot.js
