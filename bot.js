@@ -108,28 +108,44 @@ async function managePositions() {
         const symbol = pos.symbol
         const type = pos.type // 0 = BUY, 1 = SELL
         
-        // Nếu SL đã ở entry rồi thì skip
-        if(Math.abs(currentSL - entry) <= 0.5) {
-            continue
-        }
-        
         // Lấy giá hiện tại
         const priceData = await getPrice(symbol)
         const currentPrice = type === 0 ? priceData.bid : priceData.ask
         
-        // Kiểm tra giá đã lãi >= 3 points
-        let profitReached = false
+        let newSL = null
         
         if(type === 0) { // BUY
-            profitReached = currentPrice >= entry + 3
+            const profit = currentPrice - entry
+            
+            if(profit >= 8) {
+                // Lãi >= 8 points -> SL = entry + 2
+                newSL = entry + 2
+            } else if(profit >= 6) {
+                // Lãi >= 6 points -> SL = entry + 1
+                newSL = entry + 1
+            } else if(profit >= 3) {
+                // Lãi >= 3 points -> SL = entry (breakeven)
+                newSL = entry
+            }
         } else { // SELL
-            profitReached = currentPrice <= entry - 3
+            const profit = entry - currentPrice
+            
+            if(profit >= 8) {
+                // Lãi >= 8 points -> SL = entry - 2
+                newSL = entry - 2
+            } else if(profit >= 6) {
+                // Lãi >= 6 points -> SL = entry - 1
+                newSL = entry - 1
+            } else if(profit >= 3) {
+                // Lãi >= 3 points -> SL = entry (breakeven)
+                newSL = entry
+            }
         }
         
-        // Nếu đã lãi 3 points thì dịch SL về entry
-        if(profitReached) {
-            console.log(`MOVE SL TO BREAKEVEN: Ticket ${pos.ticket}, Entry: ${entry}, Current: ${currentPrice}`)
-            await modifySL(pos.ticket, entry)
+        // Nếu có SL mới và khác SL hiện tại (cho phép sai số 0.5)
+        if(newSL !== null && Math.abs(currentSL - newSL) > 0.5) {
+            console.log(`MOVE SL: Ticket ${pos.ticket}, Entry: ${entry}, Current: ${currentPrice}, New SL: ${newSL}`)
+            await modifySL(pos.ticket, newSL)
         }
     }
 }
